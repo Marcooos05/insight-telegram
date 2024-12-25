@@ -1,33 +1,30 @@
-/**
- * TODO(developer):
- * Add your service key to the current folder.
- * Uncomment and fill in these variables.
- */
-// const projectId = '';
-// const locationId = '';
-// const agentId = '';
-// const languageCode = 'en'
-// const TELEGRAM_TOKEN='';
-// const SERVER_URL=''
-// const API_KEY = '';
-
+// IMPORTS
 const structProtoToJson =
     require('../../botlib/proto_to_json.js').structProtoToJson;
-
 const express = require('express');
 const axios = require('axios');
 const bodyParser = require('body-parser');
 const FormData = require('form-data');
 const fs = require('fs');
+const admin = require('firebase-admin');
+// Path to your service account key JSON file
+const serviceAccount = require('./firestore-key.json');
+
+// Initialize Firebase Admin SDK
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
+
+// Initialize Firestore
+const db = admin.firestore();
+
+// Credentials
 
 
+// CONSTANTS
+const DATE = "24 Feb" // Change date here
 const API_URL = `https://api.telegram.org/bot${TELEGRAM_TOKEN}`;
 const URI = `/webhook/${TELEGRAM_TOKEN}`;
-const WEBHOOK = SERVER_URL + URI;
-
-const app = express();
-app.use(bodyParser.json());
-
 const states = {
   START: "START",
   GET_NAME: "GET_NAME",
@@ -39,6 +36,10 @@ const states = {
   PLANNER: "PLANNER",
   FINISH: "FINISH"
 };
+const WEBHOOK = SERVER_URL + URI;
+const app = express();
+
+app.use(bodyParser.json());
 
 // Imports the Google Cloud Some API library
 const {SessionsClient} = require('@google-cloud/dialogflow-cx');
@@ -144,7 +145,7 @@ const userStates = {}; // In-memory store for tracking user registration state
 async function handleRegistration(chatId, messageText) {
   if (!userStates[chatId]) {
     // Initialize user state
-    userStates[chatId] = { state: states.START, data: {} };
+    userStates[chatId] = { state: states.PLANNER, data: {} };
   }
 
   const user = userStates[chatId];
@@ -360,29 +361,62 @@ async function handleRegistration(chatId, messageText) {
       break;
 
     case states.PLANNER: // Questionaire or allow them to choose among the events
-      if (messageText.toLowerCase() === "yes") {
-        // Poll for the events here
+      const itemsPerPage = 6; // Max buttons per page
+      let currentPage = 0; // Dynamically track the current page
+
+      try {
+        // Reference the document for today's events
+        const eventsDoc = db.collection("events").doc(DATE);
+        const docSnapshot = await eventsDoc.get();
+        // Fetch and map the event names into inline buttons
+        if (docSnapshot.exists) {
+          const eventsDict = docSnapshot.data();
+          const events = Object.keys(eventsDict).map((eventName) => ({
+            name: eventName,
+            id: eventName.toLowerCase().replace(/\s+/g, "_"),
+          }));
+
+          // Calculate pagination
+          const totalPages = Math.ceil(events.length / itemsPerPage);
+          const startIndex = currentPage * itemsPerPage;
+          const endIndex = startIndex + itemsPerPage;
+
+          // Slice events for the current page
+          const inlineKeyboard = events.slice(startIndex, endIndex).map((event) => [
+            {text: event.name, callback_data: `event_${event.id}`},
+          ]);
+
+          // Add navigation buttons
+          if (currentPage > 0) {
+            inlineKeyboard.push([{text: "⬅️ Previous", callback_data: `page_${currentPage - 1}`}]);
+          }
+          if (currentPage < totalPages - 1) {
+            inlineKeyboard.push([{text: "Next ➡️", callback_data: `page_${currentPage + 1}`}]);
+          }
+          console.log(inlineKeyboard)
+          await axios.post(`${API_URL}/sendMessage`, {
+            chat_id: chatId,
+            text: "Which events are you interested in attending today? 🗓️",
+            parse_mode: "HTML",
+            reply_markup: {
+              inline_keyboard: inlineKeyboard,
+            },
+          });
+        } else {
+          await axios.post(`${API_URL}/sendMessage`, {
+            chat_id: chatId,
+            text: "There were no events found 🗓️",
+            parse_mode: "HTML"
+          })
+        }
+      } catch (error) {
+        console.error("Error fetching or sending events:", error.message);
+
+        // Notify the user of an error
         await axios.post(`${API_URL}/sendMessage`, {
           chat_id: chatId,
-          text: "Which events are you interested in attending today? 🗓️",
+          text: "Oops! Something went wrong while fetching the events. Please try again later. ⚠️",
           parse_mode: "HTML",
-          reply_markup: {
-            inline_keyboard: [
-              [{text: "Campus Tour 🏫", callback_data: "event_campus_tour"}],
-              [{text: "Workshops 🛠️", callback_data: "event_workshops"}],
-              [{text: "Admission Talks 🎓", callback_data: "event_admission_talks"}],
-              [{text: "Lab Demonstrations 🧪", callback_data: "event_lab_demos"}],
-              [{text: "Student Performances 🎭", callback_data: "event_student_perf"}]
-            ]
-          }
-        });
-      }
-      else {
-        // Questionaire
-        await axios.post(`${API_URL}/sendMessage`, {
-        chat_id: chatId,
-        text: "Interests Poll",
-        parse_mode: "HTML" // Enables bold and clean formatting
         });
       }
       user.state = states.FINISH; //temporary
