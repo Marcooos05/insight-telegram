@@ -1,33 +1,29 @@
-/**
- * TODO(developer):
- * Add your service key to the current folder.
- * Uncomment and fill in these variables.
- */
-// const projectId = '';
-// const locationId = '';
-// const agentId = '';
-// const languageCode = 'en'
-// const TELEGRAM_TOKEN='';
-// const SERVER_URL=''
-// const API_KEY = '';
-
+// IMPORTS
 const structProtoToJson =
     require('../../botlib/proto_to_json.js').structProtoToJson;
-
 const express = require('express');
 const axios = require('axios');
 const bodyParser = require('body-parser');
 const FormData = require('form-data');
 const fs = require('fs');
+const admin = require('firebase-admin');
+// Path to your service account key JSON file
+const serviceAccount = require('./firestore-key.json');
+const handleCallbackQuery = require('./utils/HandleCallbackQuery.js')
+
+// Initialize Firebase Admin SDK
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
+
+// Initialize Firestore
+const db = admin.firestore();
 
 
+// CONSTANTS
+const DATE = "24 Feb" // Change date here
 const API_URL = `https://api.telegram.org/bot${TELEGRAM_TOKEN}`;
 const URI = `/webhook/${TELEGRAM_TOKEN}`;
-const WEBHOOK = SERVER_URL + URI;
-
-const app = express();
-app.use(bodyParser.json());
-
 const states = {
   START: "START",
   GET_NAME: "GET_NAME",
@@ -39,6 +35,10 @@ const states = {
   PLANNER: "PLANNER",
   FINISH: "FINISH"
 };
+const WEBHOOK = SERVER_URL + URI;
+const app = express();
+
+app.use(bodyParser.json());
 
 // Imports the Google Cloud Some API library
 const {SessionsClient} = require('@google-cloud/dialogflow-cx');
@@ -144,7 +144,7 @@ const userStates = {}; // In-memory store for tracking user registration state
 async function handleRegistration(chatId, messageText) {
   if (!userStates[chatId]) {
     // Initialize user state
-    userStates[chatId] = { state: states.START, data: {} };
+    userStates[chatId] = { state: states.PLANNER, data: {} };
   }
 
   const user = userStates[chatId];
@@ -361,28 +361,59 @@ async function handleRegistration(chatId, messageText) {
 
     case states.PLANNER: // Questionaire or allow them to choose among the events
       if (messageText.toLowerCase() === "yes") {
-        // Poll for the events here
-        await axios.post(`${API_URL}/sendMessage`, {
-          chat_id: chatId,
-          text: "Which events are you interested in attending today? 🗓️",
-          parse_mode: "HTML",
-          reply_markup: {
-            inline_keyboard: [
-              [{text: "Campus Tour 🏫", callback_data: "event_campus_tour"}],
-              [{text: "Workshops 🛠️", callback_data: "event_workshops"}],
-              [{text: "Admission Talks 🎓", callback_data: "event_admission_talks"}],
-              [{text: "Lab Demonstrations 🧪", callback_data: "event_lab_demos"}],
-              [{text: "Student Performances 🎭", callback_data: "event_student_perf"}]
-            ]
+        try {
+          // Reference the document for today's events
+          const eventsDoc = db.collection("events").doc(DATE);
+          const docSnapshot = await eventsDoc.get();
+          // Fetch and map the event names into inline buttons
+          if (docSnapshot.exists) {
+            const eventsDict = docSnapshot.data();
+            const inlineKeyboard = Object.keys(eventsDict).map((eventName, index) => [
+              {
+                text: eventName,
+                callback_data: `events_${index}`,
+              },
+            ]);
+            const maxButtonsPerPage = 10;
+            const pages = [];
+            for (let i = 0; i < inlineKeyboard.length; i += maxButtonsPerPage) {
+              pages.push(inlineKeyboard.slice(i, i + maxButtonsPerPage));
+            }
+            for (const page of pages) {
+              await axios.post(`${API_URL}/sendMessage`, {
+                chat_id: chatId,
+                text: "Which events are you interested in attending today? 🗓️",
+                parse_mode: "HTML",
+                reply_markup: {
+                  inline_keyboard: page,
+                },
+              });
+            }
           }
-        });
-      }
-      else {
+          else {
+            await axios.post(`${API_URL}/sendMessage`, {
+              chat_id: chatId,
+              text: "There were no events found 🗓️",
+              parse_mode: "HTML"
+            })
+          }
+        }
+        catch (error) {
+          console.error("Error fetching or sending events:", error.message);
+
+          // Notify the user of an error
+          await axios.post(`${API_URL}/sendMessage`, {
+            chat_id: chatId,
+            text: "Oops! Something went wrong while fetching the events. Please try again later. ⚠️",
+            parse_mode: "HTML",
+          });
+        }
+      } else {
         // Questionaire
         await axios.post(`${API_URL}/sendMessage`, {
-        chat_id: chatId,
-        text: "Interests Poll",
-        parse_mode: "HTML" // Enables bold and clean formatting
+          chat_id: chatId,
+          text: "Interests Poll",
+          parse_mode: "HTML" // Enables bold and clean formatting
         });
       }
       user.state = states.FINISH; //temporary
@@ -441,66 +472,70 @@ async function showEvents(chatId){
 }
 
 app.post(URI, async (req, res) => {
-  const chatId = req.body.message.chat.id;
-  const messageText = req.body.message.text;
-
-  try {
-    // Check if the user is in the registration flow
-    await sendTypingAction(chatId);
-    if (userStates[chatId]?.state !== states.FINISH) {
-      if (messageText === '/events') {
-        await axios.post(`${API_URL}/sendMessage`, {
-          chat_id: chatId,
-          text: "🎉 <b>Please register first using /start! </b> 😊",
-          parse_mode: "HTML" // Enables bold and clean formatting
-        });
+  if (req.body.callback_query){
+    const callbackQuery = req.body.callback_query
+    const chatId = callbackQuery.message.chat.id;
+    const callbackQueryId = callbackQuery.id;
+    const callbackData = callbackQuery.data
+    await handleCallbackQuery(chatId, callbackData, API_URL, callbackQueryId);
+  }
+  else {
+    try {
+      const chatId = req.body.message.chat.id;
+      const messageText = req.body.message.text;
+      // Check if the user is in the registration flow
+      await sendTypingAction(chatId);
+      if (userStates[chatId]?.state !== states.FINISH) {
+        if (messageText === '/events') {
+          await axios.post(`${API_URL}/sendMessage`, {
+            chat_id: chatId,
+            text: "🎉 <b>Please register first using /start! </b> 😊",
+            parse_mode: "HTML" // Enables bold and clean formatting
+          });
+        } else {
+          // Continue the registration flow
+          await handleRegistration(chatId, messageText);
+        }
       } else {
-        // Continue the registration flow
-        await handleRegistration(chatId, messageText);
-      }
-    }
-    else {
-      // normal state flow after registration
-      if (messageText === '/start') {
-        // Should now allow start handler anymore after registering
-        await axios.post(`${API_URL}/sendMessage`, {
-          chat_id: chatId,
-          text: "🎉 <b>You have already registered. Please contact @zedithx on telegram for further help </b> 😊",
-          parse_mode: "HTML" // Enables bold and clean formatting
-        });
-      }
-      else if (messageText === '/events') {
-        // Initial message
-        await axios.post(`${API_URL}/sendMessage`, {
-          chat_id: chatId,
-          text: "🎉 <b>Please view the event schedules below! </b> 😊",
-          parse_mode: "HTML", // Enables bold and clean formatting
-        });
-        await showEvents(chatId)
-      }
-      else {
-        // Proceed with Dialogflow interaction if no keywords
-        const response = await detectIntentResponse(req.body);
-        // console.info("Dialogflow Response:", JSON.stringify(response, null, 2));
-        const requests = await convertToTelegramMessage(response, chatId);
-        // console.info("Converted Requests:", requests);
+        // normal state flow after registration
+        if (messageText === '/start') {
+          // Should now allow start handler anymore after registering
+          await axios.post(`${API_URL}/sendMessage`, {
+            chat_id: chatId,
+            text: "🎉 <b>You have already registered. Please contact @zedithx on telegram for further help </b> 😊",
+            parse_mode: "HTML" // Enables bold and clean formatting
+          });
+        } else if (messageText === '/events') {
+          // Initial message
+          await axios.post(`${API_URL}/sendMessage`, {
+            chat_id: chatId,
+            text: "🎉 <b>Please view the event schedules below! </b> 😊",
+            parse_mode: "HTML", // Enables bold and clean formatting
+          });
+          await showEvents(chatId)
+        } else {
+          // Proceed with Dialogflow interaction if no keywords
+          const response = await detectIntentResponse(req.body);
+          // console.info("Dialogflow Response:", JSON.stringify(response, null, 2));
+          const requests = await convertToTelegramMessage(response, chatId);
+          // console.info("Converted Requests:", requests);
 
-        for (const request of requests) {
-          if (request.hasOwnProperty('photo')) {
-            await axios.post(`${API_URL}/sendPhoto`, request).catch((error) => console.error(error));
-          } else if (request.hasOwnProperty('voice')) {
-            await axios.post(`${API_URL}/sendVoice`, request).catch((error) => console.error(error));
-          } else {
-            await axios.post(`${API_URL}/sendMessage`, request).catch((error) => console.error(error));
+          for (const request of requests) {
+            if (request.hasOwnProperty('photo')) {
+              await axios.post(`${API_URL}/sendPhoto`, request).catch((error) => console.error(error));
+            } else if (request.hasOwnProperty('voice')) {
+              await axios.post(`${API_URL}/sendVoice`, request).catch((error) => console.error(error));
+            } else {
+              await axios.post(`${API_URL}/sendMessage`, request).catch((error) => console.error(error));
+            }
           }
         }
       }
+    } catch (error) {
+      console.error('Error handling webhook:', error.message);
     }
-  } catch (error) {
-    console.error('Error handling webhook:', error.message);
+    res.send();
   }
-
-  res.send();
 });
 
 const listener = app.listen(process.env.PORT, async () => {
