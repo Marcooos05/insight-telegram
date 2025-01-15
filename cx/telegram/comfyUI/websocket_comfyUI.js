@@ -292,7 +292,7 @@ function getRandomAvatar(avatarType) {
   const avatarName = avatarNames[randomIndex];
   const tagline = taglines[randomIndex];
 
-  const randomAvatarNumber = Math.floor(Math.random() * 3) + 1; //TODO Change to an array of all the possible samples
+  const randomAvatarNumber = Math.floor(Math.random() * 25) + 1;
   const scriptDir = __dirname;
   const avatarBasePath = path.join(scriptDir, "Samples");
   const avatarPath = path.join(
