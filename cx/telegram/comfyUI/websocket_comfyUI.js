@@ -5,10 +5,9 @@ const sharp = require("sharp");
 const fs = require("fs");
 const path = require("path");
 const uuid = require("uuid");
-const { type } = require("os");
 
 const SERVER_ADDRESS = process.env.COMFYUI_ADDRESS; // || "127.0.0.1:8188";
-const CLIENT_ID = process.env.CLIENT_ID || uuid.v4();
+const CLIENT_ID = uuid.v4();
 
 // Function to queue a prompt
 async function queuePrompt(
@@ -139,10 +138,10 @@ async function getCustomAvatar(
   clientId = CLIENT_ID
 ) {
   // Array of possible seeds
-  const seeds = [785790463864390]; // Replace this with all possible seeds
+  // const seeds = [785790463864390]; // Replace this with all possible seeds
 
   // Select a random seed
-  const seedNum = seeds[Math.floor(Math.random() * seeds.length)];
+  const seedNum = Math.floor(Math.random() * (10 ** 15 - 10 ** 14) + 10 ** 14);
 
   // Log the selected seed
   console.log(`Selected seed: ${seedNum}`);
@@ -150,7 +149,7 @@ async function getCustomAvatar(
     3: {
       inputs: {
         seed: seedNum,
-        steps: 30,
+        steps: 25,
         cfg: 7,
         sampler_name: "euler_ancestral",
         scheduler: "karras",
@@ -189,6 +188,12 @@ async function getCustomAvatar(
       },
       class_type: "VAEDecode",
     },
+    26: {
+      inputs: {
+        images: ["25", 0],
+      },
+      class_type: "PreviewImage",
+    },
     38: {
       inputs: {
         filename_prefix: "pixelbuildings128-v1-raw-",
@@ -216,27 +221,76 @@ async function getCustomAvatar(
     },
   };
 
-  const ws = new WebSocket(`ws://${serverAddress}/ws?clientId=${clientId}`);
-  const images = await getImages(ws, prompt, serverAddress, clientId);
-  ws.close();
-
-  const scriptDir = __dirname;
-  const avatarFolder = path.join(scriptDir, "Avatars");
-  if (!fs.existsSync(avatarFolder)) {
-    fs.mkdirSync(avatarFolder);
-  }
-
-  let avatarPath;
-  for (const filename in images) {
-    const imageData = images[filename];
-    avatarPath = path.join(avatarFolder, `${avatarType}_${chatID}_avatar.png`);
-    await sharp(Buffer.from(imageData[0])).toFile(avatarPath);
-  }
-
   // (avatarName, tagline) = getAvatarNameAndTagline(avatarType, personalInterest) //api call to openAI
 
-  const avatarName = `${avatarType}`; //TODO Change to the openAI prompt to retrieve avatar name based on avatarType and interest
-  const tagline = "Trailblazing a better world by design!"; //TODO Change to the openAI prompt to retrieve avatar tagline based on avatarType and interest
+  async function getAvatarNameAndTagline(avatarType, personalInterest) {
+    try {
+      const prompt = `Generate a creative avatar name and tagline for an avatar type "${avatarType}" with personal interest "${personalInterest}".`;
+      const response = await axios.post(
+        "https://api.openai.com/v1/chat/completions",
+        {
+          model: "gpt-3.5-turbo",
+          messages: [{ role: "user", content: prompt }],
+          max_tokens: 50,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.API_KEY}`,
+          },
+        }
+      );
+
+      const result = response.data.choices[0].message.content.split("\n");
+
+      console.log("Result:", result);
+      const avatarName = result[0].split(": ").pop() || avatarType;
+      const tagline =
+        result[1].split(": ").pop() || "Trailblazing a better world by design!";
+      console.log(`Avatar Name: ${avatarName}`);
+      console.log(`Tagline: ${tagline}`);
+      return { avatarName, tagline };
+    } catch (error) {
+      console.error("Error generating avatar name and tagline:", error);
+      throw error;
+    }
+  }
+  console.log("before getAvatarNameAndTagline");
+  const { avatarName, tagline } = await getAvatarNameAndTagline(
+    avatarType,
+    personalInterest
+  );
+
+  try {
+    const ws = new WebSocket(`ws://${serverAddress}/ws?clientId=${clientId}`);
+    ws.on("error", (err) => {
+      console.error("WebSocket error:", err);
+      ws.close();
+    });
+    const images = await getImages(ws, prompt, serverAddress, clientId);
+    ws.close();
+    console.log("websocket closed");
+
+    const scriptDir = __dirname;
+    const avatarFolder = path.join(scriptDir, "Avatars");
+    if (!fs.existsSync(avatarFolder)) {
+      fs.mkdirSync(avatarFolder);
+    }
+
+    let avatarPath;
+    for (const filename in images) {
+      const imageData = images[filename];
+      avatarPath = path.join(
+        avatarFolder,
+        `${avatarType}_${chatID}_avatar.png`
+      );
+      await sharp(Buffer.from(imageData[0])).toFile(avatarPath);
+    }
+  } catch (error) {
+    console.error("Error generating custom avatar:", error);
+    throw error;
+  }
+
   return { avatarName, tagline, avatarPath };
 }
 

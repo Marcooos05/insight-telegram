@@ -76,6 +76,7 @@ async function createEventPass({
       ));
     } catch (error) {
       console.error(`Error reading custom avatar: ${error.message}`);
+
       //Use sample flow if custom avatar fails
       ({ avatarName, tagline, avatarPath } = await getRandomAvatar(avatarType));
       console.log(avatarName, tagline, avatarPath);
