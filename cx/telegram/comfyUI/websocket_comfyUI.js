@@ -225,7 +225,7 @@ async function getCustomAvatar(
 
   async function getAvatarNameAndTagline(avatarType, personalInterest) {
     try {
-      const prompt = `Generate a creative and appropriate avatar name and tagline for an avatar type '${avatarType}' with a personal interest in '${personalInterest}'. The name and tagline should be engaging, welcoming, and suitable for a university open house in Singapore. Avoid any inappropriate, offensive, political, religious, or culturally sensitive content. Ensure the tone is professional yet friendly, aligning with an academic and inclusive environment.`;
+      const prompt = `Generate a creative and appropriate avatar name and tagline for an avatar type '${avatarType}' with a personal interest in '${personalInterest}'. The name and tagline should be engaging, welcoming, and suitable for a university open house. Avoid any inappropriate, offensive, political, religious, or culturally sensitive content. Ensure the tone is professional yet friendly, aligning with an academic and inclusive environment. The tagline must be concise and within 50 characters.`;
       const response = await axios.post(
         "https://api.openai.com/v1/chat/completions",
         {
