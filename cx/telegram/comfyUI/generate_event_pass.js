@@ -74,12 +74,23 @@ async function createEventPass({
         textPrompt,
         SERVER_ADDRESS
       ));
+      console.log(
+        "Custom Avatar successful: ",
+        avatarName,
+        tagline,
+        avatarPath
+      );
     } catch (error) {
       console.error(`Error reading custom avatar: ${error.message}`);
 
       //Use sample flow if custom avatar fails
       ({ avatarName, tagline, avatarPath } = await getRandomAvatar(avatarType));
-      console.log(avatarName, tagline, avatarPath);
+      console.log(
+        "Custom Avatar failed, random avatar: ",
+        avatarName,
+        tagline,
+        avatarPath
+      );
     }
   } else {
     ({ avatarName, tagline, avatarPath } = await getRandomAvatar(avatarType));
@@ -178,12 +189,12 @@ async function createEventPass({
     60
   );
   const taglineTextImage = createTextImage(
-    `"${tagline}"`,
+    tagline,
     availableFonts[3], // Replace with desired font from the list
     30, // Smaller font size
     passWidth,
     60,
-    (bold = false)
+    false
   );
 
   // Composite text images onto event pass
@@ -204,6 +215,15 @@ async function createEventPass({
 
   //TODO ADD composite for QR CODE id number in text below the qrData
 
+  const qrDataTextImage = createTextImage(
+    qrData,
+    availableFonts[3], // Replace with desired font from the list
+    25, // Smaller font size
+    passWidth,
+    60,
+    false
+  );
+
   // Composite QR code onto event pass
   const qrX = (passWidth - 400) / 2;
   const qrY = 1517;
@@ -214,6 +234,7 @@ async function createEventPass({
     { input: avatarNameTextImage, top: 1310, left: 0 },
     { input: taglineTextImage, top: 1380, left: 0 },
     { input: qrImgBuffer, top: qrY, left: qrX },
+    { input: qrDataTextImage, top: 1505, left: 0 },
   ]);
   const eventPassBuffer = await eventPass.toBuffer();
 

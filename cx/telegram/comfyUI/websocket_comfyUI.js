@@ -225,7 +225,7 @@ async function getCustomAvatar(
 
   async function getAvatarNameAndTagline(avatarType, personalInterest) {
     try {
-      const prompt = `Generate a creative avatar name and tagline for an avatar type "${avatarType}" with personal interest "${personalInterest}".`;
+      const prompt = `Generate a creative and appropriate avatar name and tagline for an avatar type '${avatarType}' with a personal interest in '${personalInterest}'. The name and tagline should be engaging, welcoming, and suitable for a university open house in Singapore. Avoid any inappropriate, offensive, political, religious, or culturally sensitive content. Ensure the tone is professional yet friendly, aligning with an academic and inclusive environment.`;
       const response = await axios.post(
         "https://api.openai.com/v1/chat/completions",
         {
@@ -241,12 +241,17 @@ async function getCustomAvatar(
         }
       );
 
-      const result = response.data.choices[0].message.content.split("\n");
+      const result = response.data.choices[0].message.content
+        .split("\n")
+        .filter((line) => line.trim() !== "");
 
       console.log("Result:", result);
-      const avatarName = result[0].split(": ").pop() || avatarType;
+      console.log("Generated avatar name:", result[0].split(": ")[1]);
+      console.log("Generated tagline:", result[1].split(": ")[1]);
+
+      const avatarName = result[0].split(": ")[1] || avatarType;
       const tagline =
-        result[1].split(": ").pop() || "Trailblazing a better world by design!";
+        result[1].split(": ")[1] || "Trailblazing a better world by design!";
       console.log(`Avatar Name: ${avatarName}`);
       console.log(`Tagline: ${tagline}`);
       return { avatarName, tagline };
@@ -255,12 +260,13 @@ async function getCustomAvatar(
       throw error;
     }
   }
-  console.log("before getAvatarNameAndTagline");
+  //console.log("before getAvatarNameAndTagline");
   const { avatarName, tagline } = await getAvatarNameAndTagline(
     avatarType,
     personalInterest
   );
 
+  let avatarPath;
   try {
     const ws = new WebSocket(`ws://${serverAddress}/ws?clientId=${clientId}`);
     ws.on("error", (err) => {
@@ -277,13 +283,9 @@ async function getCustomAvatar(
       fs.mkdirSync(avatarFolder);
     }
 
-    let avatarPath;
     for (const filename in images) {
       const imageData = images[filename];
-      avatarPath = path.join(
-        avatarFolder,
-        `${avatarType}_${chatID}_avatar.png`
-      );
+      avatarPath = path.join(avatarFolder, `${chatID}_avatar.png`);
       await sharp(Buffer.from(imageData[0])).toFile(avatarPath);
     }
   } catch (error) {
