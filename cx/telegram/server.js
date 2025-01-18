@@ -29,7 +29,6 @@ const SERVER_URL = process.env.SERVER_URL;
 const API_KEY = process.env.API_KEY;
 
 // CONSTANTS
-const DATE = process.env.DATE; // Change date here
 const API_URL = `https://api.telegram.org/bot${TELEGRAM_TOKEN}`;
 const URI = `/webhook/${TELEGRAM_TOKEN}`;
 const WEBHOOK = SERVER_URL + URI;
@@ -42,6 +41,7 @@ const { SessionsClient } = require("@google-cloud/dialogflow-cx");
 
 // Import from other files
 const { handleRegistration } = require("./flows/registration");
+const { handleDelete } = require("./flows/delete");
 const { END_FLOW } = require("./flows/eventpass");
 
 /**
@@ -128,7 +128,6 @@ async function detectIntentResponse(telegramRequest) {
 
 const setup = async () => {
   const res = await axios.post(`${API_URL}/setWebhook`, { url: WEBHOOK });
-  console.log(res.data);
 };
 
 const sendTypingAction = async (chatId) => {
@@ -210,6 +209,8 @@ app.post(URI, async (req, res) => {
             text: "🎉 <b>Please register first using /start! </b> 😊",
             parse_mode: "HTML", // Enables bold and clean formatting
           });
+        } else if (messageText === "/delete" || userStates[chatId]?.delete) {
+          await handleDelete(chatId, messageText, userStates, API_URL);
         } else {
           // Continue the registration flow
           await handleRegistration(chatId, messageText, userStates, API_URL);
@@ -220,7 +221,9 @@ app.post(URI, async (req, res) => {
           // Should now allow start handler anymore after registering
           await axios.post(`${API_URL}/sendMessage`, {
             chat_id: chatId,
-            text: "🎉 <b>You have already registered. Please contact @zedithx on telegram for further help </b> 😊", //TODO CHANGE TEXT
+            text:
+              "🎉 <b>You have already registered. Please do /delete to remove your registration" +
+              "entry first!</b> 😊",
             parse_mode: "HTML", // Enables bold and clean formatting
           });
         } else if (messageText === "/events") {
@@ -234,7 +237,7 @@ app.post(URI, async (req, res) => {
           await axios.post(`${API_URL}/sendMessage`, {
             chat_id: chatId,
             text:
-              "<b>🗺️ Would you like me to help plan your SUTD Open House visit today?</b>" +
+              "<b>🗺️ Would you like me to help plan your SUTD Open House visit today?\n</b>" +
               "1️⃣ <b>⏳ Maybe later</b> 🎓\n" +
               "2️⃣ <b>✅ Yes, help me plan my journey</b> 🧑‍🤝‍🧑",
             parse_mode: "HTML", // Enables bold and clean formatting
@@ -245,17 +248,16 @@ app.post(URI, async (req, res) => {
             },
           });
           userStates[chatId].plan = true;
-        } else if (messageText === "/delete") {
+        } else if (userStates[chatId]?.plan) {
+          //Holder placement before event planner is complete
           await axios.post(`${API_URL}/sendMessage`, {
             chat_id: chatId,
-            text: "🎉 <b>Deleting registered account...</b>",
-            //TODO DO HANDLE DELETE FLOW
+            text: "🎉 <b>Feature still in progress, look out for new updates soon...</b> 😊",
             parse_mode: "HTML", // Enables bold and clean formatting
           });
-
-          delete userStates[chatId]; // Reset state
-        } else if (userStates[chatId]?.plan) {
           // await handlePlanning();
+        } else if (messageText === "/delete" || userStates[chatId]?.delete) {
+          await handleDelete(chatId, messageText, userStates, API_URL);
         } else {
           // Proceed with Dialogflow interaction if no keywords
           const response = await detectIntentResponse(req.body);
@@ -288,7 +290,6 @@ app.post(URI, async (req, res) => {
 });
 
 const listener = app.listen(process.env.PORT, async () => {
-  // console.log(process.env);
   console.log(
     "Your Dialogflow integration server is listening on port " +
       listener.address().port

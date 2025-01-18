@@ -174,7 +174,15 @@ async function handleRegistration(chatId, messageText, userStates, API_URL) {
         break;
 
       case reg_states.CONFIRMATION: // Step 1: Select gender
-        if (messageText.toLowerCase() !== "yes") {
+        if (!["Yes", "No", "YES", "NO", "yes", "no"].includes(messageText)) {
+          await axios.post(`${API_URL}/sendMessage`, {
+            chat_id: chatId,
+            text: "Sorry I didn't get that. Please reply with 'Yes' or 'No'.",
+            parse_mode: "HTML",
+          });
+          return;
+        }
+        if (messageText.toLowerCase() == "no") {
           await axios.post(`${API_URL}/sendMessage`, {
             chat_id: chatId,
             text: "It seems you want to make changes. Please restart with /start.",
@@ -191,7 +199,7 @@ async function handleRegistration(chatId, messageText, userStates, API_URL) {
 
           //TODO - save data into postgres on DO backend
 
-          await admin.firestore().collection("registration").add({
+          await admin.firestore().collection("registration").doc(chatId).set({
             name: user.data.name,
             email: user.data.email,
             phone: user.data.phone,
@@ -200,7 +208,7 @@ async function handleRegistration(chatId, messageText, userStates, API_URL) {
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
           });
 
-          await sleep(4);
+          //await sleep(4);
           await axios.post(`${API_URL}/sendMessage`, {
             chat_id: chatId,
             text:
