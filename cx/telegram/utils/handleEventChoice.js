@@ -50,21 +50,44 @@ async function handleEventChoice(chatId, messageText, API_URL, userState) {
 
       // ✅ Send Final Confirmation Message
       const selectedEventNames = Array.from(selectedEvents[chatId]);
+
+      // ✅ Save all reminders in Firestore
+      const batch = db.batch();
+      const remindersRef = db.collection("reminders");
+
+      selectedEventNames.forEach(eventName => {
+        const docRef = remindersRef.doc(`${chatId}_${eventName}`);
+        batch.set(docRef, {
+          chatId,
+          event: eventName,
+          timestamp: new Date(), // Change this if you have event-specific timestamps
+          scheduledAt: new Date(new Date().getTime() + 24 * 60 * 60 * 1000), // Example: Schedule for 24 hours later
+        }, { merge: true });
+      });
+
+      await batch.commit(); // ✅ Save all reminders in batch
+
+      // ✅ Send Confirmation Message
       await axios.post(`${API_URL}/sendMessage`, {
         chat_id: chatId,
         text: `🎉 Thank you for choosing your events!\n\n📅 You have registered for:\n\n${selectedEventNames.map(e => `- ${e}`).join("\n")}`,
         parse_mode: "HTML",
+        reply_markup: {
+          remove_keyboard: true, // ✅ This hides the keyboard
+        },
       });
 
-      delete selectedEvents[chatId]; // ✅ Clear selection after finishing
-      userState[chatId].state = END_FLOW; // ✅ Move to next step
+      // ✅ Clear selection after finishing
+      delete selectedEvents[chatId];
+      userState[chatId].state = END_FLOW;
+
+      // ✅ Schedule Messages (This requires a scheduler function)
+      // scheduleMessagesForUser(chatId, selectedEventNames);
+
       return;
     }
 
     // ✅ Handle Event Selection (Auto-Reminder)
-    if (messageText.startsWith("✅") || messageText.startsWith("⚠️")) {
-      return; // ❌ Ignore system messages
-    }
 
     if (selectedEvents[chatId].has(messageText)) {
       selectedEvents[chatId].delete(messageText);
@@ -80,13 +103,6 @@ async function handleEventChoice(chatId, messageText, API_URL, userState) {
         text: `⏰ Reminder set for "${messageText}".`,
         parse_mode: "HTML",
       });
-
-      // ✅ (Optional) Save Reminder to Firestore
-      await db.collection("reminders").doc(`${chatId}_${messageText}`).set({
-        chatId,
-        event: messageText,
-        timestamp: new Date(),
-      }, { merge: true });
     }
 
     // ✅ Resend Event List (So User Can Continue Selecting)
