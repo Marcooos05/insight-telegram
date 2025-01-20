@@ -216,24 +216,28 @@ app.post(URI, async (req, res) => {
         console.error("Error connecting to backend:", error.message);
       }
 
-      if (userStates[chatId]?.state !== END_FLOW) {
+      if (config.unregisteredStatus.includes(userState)) {
+        //If user is "Not Found" or "Deleted"
         if (messageText === "/events") {
           await axios.post(`${API_URL}/sendMessage`, {
             chat_id: chatId,
             text: "🎉 <b>Please register first using /start! </b> 😊",
             parse_mode: "HTML", // Enables bold and clean formatting
           });
-        } else if (messageText === "/delete" || userStates[chatId]?.delete) {
-          await handleDelete(chatId, messageText, userStates, API_URL);
+        } else if (messageText === "/delete") {
+          await axios.post(`${API_URL}/sendMessage`, {
+            chat_id: chatId,
+            text: "⚠️ <b>Your account does not exist. Please register first using /start!</b> 😊",
+            parse_mode: "HTML", // Enables bold and clean formatting
+          });
         } else {
           // Continue the registration flow
-
           await handleRegistration(chatId, messageText, userStates, API_URL);
         }
       } else {
-        // normal state flow after registration
+        //If user is Registered
         if (messageText === "/start") {
-          // Should now allow start handler anymore after registering
+          // Should not allow start handler anymore after registering
           await axios.post(`${API_URL}/sendMessage`, {
             chat_id: chatId,
             text:
@@ -297,6 +301,90 @@ app.post(URI, async (req, res) => {
           }
         }
       }
+
+      // if (userStates[chatId]?.state !== END_FLOW) {
+      //   if (messageText === "/events") {
+      //     await axios.post(`${API_URL}/sendMessage`, {
+      //       chat_id: chatId,
+      //       text: "🎉 <b>Please register first using /start! </b> 😊",
+      //       parse_mode: "HTML", // Enables bold and clean formatting
+      //     });
+      //   }
+      //   //Nothing to delete if not registered yet
+      //   //  else if (messageText === "/delete" || userStates[chatId]?.delete) {
+      //   //   await handleDelete(chatId, messageText, userStates, API_URL);
+      //   // }
+      //   else {
+      //     // Continue the registration flow
+      //     await handleRegistration(chatId, messageText, userStates, API_URL);
+      //   }
+      // } else {
+      //   // normal state flow after registration
+      //   if (messageText === "/start") {
+      //     // Should not allow start handler anymore after registering
+      //     await axios.post(`${API_URL}/sendMessage`, {
+      //       chat_id: chatId,
+      //       text:
+      //         "🎉 <b>You have already registered. Please do /delete to remove your registration" +
+      //         "entry first!</b> 😊",
+      //       parse_mode: "HTML", // Enables bold and clean formatting
+      //     });
+      //   } else if (messageText === "/events") {
+      //     // Initial message
+      //     await axios.post(`${API_URL}/sendMessage`, {
+      //       chat_id: chatId,
+      //       text: "🎉 <b>Here are the exciting events happening at SUTD Open House 2025!</b> 😊",
+      //       parse_mode: "HTML", // Enables bold and clean formatting
+      //     });
+      //     await showEvents(chatId);
+      //     await axios.post(`${API_URL}/sendMessage`, {
+      //       chat_id: chatId,
+      //       text:
+      //         "<b>🗺️ Would you like me to help plan your SUTD Open House visit today?\n</b>" +
+      //         "1️⃣ <b>⏳ Maybe later</b> 🎓\n" +
+      //         "2️⃣ <b>✅ Yes, help me plan my journey</b> 🧑‍🤝‍🧑",
+      //       parse_mode: "HTML", // Enables bold and clean formatting
+      //       reply_markup: {
+      //         keyboard: [[{ text: "Later" }], [{ text: "Yes" }]],
+      //         one_time_keyboard: true,
+      //         resize_keyboard: true,
+      //       },
+      //     });
+      //     userStates[chatId].plan = true;
+      //   } else if (userStates[chatId]?.plan) {
+      //     //Holder placement before event planner is complete
+      //     await axios.post(`${API_URL}/sendMessage`, {
+      //       chat_id: chatId,
+      //       text: "🎉 <b>Feature still in progress, look out for new updates soon...</b> 😊",
+      //       parse_mode: "HTML", // Enables bold and clean formatting
+      //     });
+      //     // await handlePlanning();
+      //   } else if (messageText === "/delete" || userStates[chatId]?.delete) {
+      //     await handleDelete(chatId, messageText, userStates, API_URL);
+      //   } else {
+      //     // Proceed with Dialogflow interaction if no keywords
+      //     const response = await detectIntentResponse(req.body);
+      //     // console.info("Dialogflow Response:", JSON.stringify(response, null, 2));
+      //     const requests = await convertToTelegramMessage(response, chatId);
+      //     // console.info("Converted Requests:", requests);
+
+      //     for (const request of requests) {
+      //       if (request.hasOwnProperty("photo")) {
+      //         await axios
+      //           .post(`${API_URL}/sendPhoto`, request)
+      //           .catch((error) => console.error(error));
+      //       } else if (request.hasOwnProperty("voice")) {
+      //         await axios
+      //           .post(`${API_URL}/sendVoice`, request)
+      //           .catch((error) => console.error(error));
+      //       } else {
+      //         await axios
+      //           .post(`${API_URL}/sendMessage`, request)
+      //           .catch((error) => console.error(error));
+      //       }
+      //     }
+      //   }
+      // }
     } catch (error) {
       console.error("Error handling webhook:", error.message);
     }
