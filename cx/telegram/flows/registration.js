@@ -31,7 +31,6 @@ async function handleRegistration(chatId, messageText, userStates, API_URL) {
     await handleEventPass(chatId, messageText, user_state, API_URL);
   } else {
     const user = userStates[chatId];
-    //TODO - get chatID state from postgres on DO backend
     switch (user.state) {
       case reg_states.START: // Step 1 : Get name
         await axios.post(`${API_URL}/sendMessage`, {
@@ -55,7 +54,6 @@ async function handleRegistration(chatId, messageText, userStates, API_URL) {
           },
         });
         user.state = reg_states.SELECT_GROUP;
-        //TODO - save chatID state into postgres on DO backend
         break;
 
       case reg_states.SELECT_GROUP: // Step 2: Get Group
@@ -75,7 +73,6 @@ async function handleRegistration(chatId, messageText, userStates, API_URL) {
           parse_mode: "HTML",
         });
         user.state = reg_states.GET_NAME;
-        //TODO - save chatID state into postgres on DO backend
         break;
 
       case reg_states.GET_NAME: // Step 3: Get Email
@@ -94,7 +91,6 @@ async function handleRegistration(chatId, messageText, userStates, API_URL) {
           parse_mode: "HTML", // Enables bold and clean formatting
         });
         user.state = reg_states.GET_EMAIL;
-        //TODO - save chatID state into postgres on DO backend
         break;
 
       case reg_states.GET_EMAIL: // Step 4: Get number
@@ -115,7 +111,6 @@ async function handleRegistration(chatId, messageText, userStates, API_URL) {
           parse_mode: "HTML",
         });
         user.state = reg_states.GET_PHONE;
-        //TODO - save chatID state into postgres on DO backend
         break;
 
       case reg_states.GET_PHONE: // Step 5: Get user's school
@@ -136,7 +131,6 @@ async function handleRegistration(chatId, messageText, userStates, API_URL) {
           parse_mode: "HTML",
         });
         user.state = reg_states.GET_SCHOOL;
-        //TODO - save chatID state into postgres on DO backend
         break;
 
       case reg_states.GET_SCHOOL: //confirmation and PDPA clause
@@ -170,7 +164,6 @@ async function handleRegistration(chatId, messageText, userStates, API_URL) {
           },
         });
         user.state = reg_states.CONFIRMATION;
-        //TODO - save chatID state into postgres on DO backend
         break;
 
       case reg_states.CONFIRMATION: // Step 1: Select gender
@@ -189,7 +182,6 @@ async function handleRegistration(chatId, messageText, userStates, API_URL) {
             parse_mode: "HTML",
           });
           user.state = reg_states.START;
-          //TODO - save chatID state into postgres on DO backend
         } else {
           await axios.post(`${API_URL}/sendMessage`, {
             chat_id: chatId,
@@ -228,7 +220,6 @@ async function handleRegistration(chatId, messageText, userStates, API_URL) {
           });
           // state will now be handled by eventpass handler
           user.state = EVENT_START;
-          //TODO - save chatID state into postgres on DO backend
           break;
         }
 
@@ -239,7 +230,6 @@ async function handleRegistration(chatId, messageText, userStates, API_URL) {
           parse_mode: "HTML", // Enables bold and clean formatting
         });
         delete userStates[chatId]; // Reset state
-      //TODO - save chatID state into postgres on DO backend
     }
   }
 }

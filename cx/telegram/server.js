@@ -10,6 +10,7 @@ const admin = require("firebase-admin");
 // Path to your service account key JSON file
 const serviceAccount = require("./firestore-key.json");
 const handleCallbackQuery = require("./utils/HandleCallbackQuery.js");
+const config = require("./config.js");
 
 // Initialize Firebase Admin SDK
 admin.initializeApp({
@@ -202,6 +203,19 @@ app.post(URI, async (req, res) => {
       const messageText = req.body.message.text;
       // Check if the user is in the registration flow
       await sendTypingAction(chatId);
+
+      let userState;
+      try {
+        const response = await axios.get(
+          `${config.backendURL}/api/get-user-status/${chatId}`
+        );
+        console.log("Backend response chatID:", response.data);
+
+        userState = response.data.status;
+      } catch (error) {
+        console.error("Error connecting to backend:", error.message);
+      }
+
       if (userStates[chatId]?.state !== END_FLOW) {
         if (messageText === "/events") {
           await axios.post(`${API_URL}/sendMessage`, {
@@ -213,6 +227,7 @@ app.post(URI, async (req, res) => {
           await handleDelete(chatId, messageText, userStates, API_URL);
         } else {
           // Continue the registration flow
+
           await handleRegistration(chatId, messageText, userStates, API_URL);
         }
       } else {
