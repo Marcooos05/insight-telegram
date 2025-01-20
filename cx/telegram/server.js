@@ -43,7 +43,10 @@ const { SessionsClient } = require("@google-cloud/dialogflow-cx");
 // Import from other files
 const { handleRegistration } = require("./flows/registration");
 const { handleDelete } = require("./flows/delete");
+const { handlePlanning } = require("./flows/planning");
 const { END_FLOW } = require("./flows/eventpass");
+const { PLANNING_START } = require("./flows/planning");
+const { sleep } = require("./utils/Sleep");
 
 /**
  * Example for regional endpoint:
@@ -253,6 +256,7 @@ app.post(URI, async (req, res) => {
             parse_mode: "HTML", // Enables bold and clean formatting
           });
           await showEvents(chatId);
+          await sleep(3000);
           await axios.post(`${API_URL}/sendMessage`, {
             chat_id: chatId,
             text:
@@ -266,15 +270,8 @@ app.post(URI, async (req, res) => {
               resize_keyboard: true,
             },
           });
-          userStates[chatId].plan = true;
-        } else if (userStates[chatId]?.plan) {
-          //Holder placement before event planner is complete
-          await axios.post(`${API_URL}/sendMessage`, {
-            chat_id: chatId,
-            text: "🎉 <b>Feature still in progress, look out for new updates soon...</b> 😊",
-            parse_mode: "HTML", // Enables bold and clean formatting
-          });
-          // await handlePlanning();
+          userStates[chatId].state = PLANNING_START;
+          userStates[chatId].planning = true;
         } else if (messageText === "/delete" || userStates[chatId]?.delete) {
           await handleDelete(chatId, messageText, userStates, API_URL);
         } else {

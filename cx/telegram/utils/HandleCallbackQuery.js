@@ -1,28 +1,19 @@
 const axios = require('axios');
+const {db} = require("../utils/firebaseAdmin");
 
 async function handleCallbackQuery(chatId, callbackData, url, callbackQueryId) {
-  switch (callbackData) {
-    case "events_0":
-      await axios.post(`${url}/sendMessage`, {
-        //TODO - dynamic scheduling of reminder based on event tag
-        chat_id: chatId,
-        text: "You selected Option 1!",
-      });
-      break;
-
-    case "events_11":
-      await axios.post(`${url}/sendMessage`, {
-        chat_id: chatId,
-        text: "You selected Option 2!",
-      });
-      break;
-
-    default:
-      await axios.post(`${url}/sendMessage`, {
-        chat_id: chatId,
-        text: "Invalid option selected.",
-      });
-      break;
+  const eventIndex = parseInt(callbackData.split("_")[1]); // Extract event index
+  // Reference the document for today's events
+  const eventsDoc = db.collection("events").doc("24 Feb");
+  const docSnapshot = await eventsDoc.get();
+  const eventsDict = docSnapshot.data();
+  const selectedEvent = Object.keys(eventsDict)[eventIndex]; // Get event name
+  if (selectedEvent) {
+    await axios.post(`${url}/sendMessage`, {
+      chat_id: chatId,
+      text: `You selected: <b>${selectedEvent}</b> ✅`,
+      parse_mode: "HTML",
+    });
   }
   await axios.post(`${url}/answerCallbackQuery`, {
     callback_query_id: callbackQueryId,

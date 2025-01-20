@@ -5,8 +5,13 @@ const axios = require("axios");
 const { sleep } = require("../utils/Sleep");
 
 // Standardise event_start and states
-const { EVENT_START, event_states, handleEventPass } = require("./eventpass");
-const admin = require("firebase-admin");
+const {
+  EVENT_START,
+  event_states,
+  handleEventPass,
+  END_FLOW,
+} = require("./eventpass");
+const { db } = require("../utils/firebaseAdmin");
 
 // Define state for end of registration flow
 const reg_states = {
@@ -190,15 +195,22 @@ async function handleRegistration(chatId, messageText, userStates, API_URL) {
           });
 
           //TODO - save data into postgres on DO backend
-
-          await admin.firestore().collection("registration").doc(chatId).set({
-            name: user.data.name,
-            email: user.data.email,
-            phone: user.data.phone,
-            groupType: user.data.groupType,
-            school: user.data.school,
-            timestamp: admin.firestore.FieldValue.serverTimestamp(),
-          });
+          try {
+            await db.collection("registration").doc(String(chatId)).set(
+              {
+                name: user.data.name,
+                email: user.data.email,
+                phone: user.data.phone,
+                groupType: user.data.groupType,
+                school: user.data.school,
+                // timestamp: db.FieldValue.serverTimestamp(),
+              },
+              { merge: true }
+            );
+          } catch (error) {
+            console.error("Error saving user to database", error.message);
+            return null;
+          }
 
           //await sleep(4);
           await axios.post(`${API_URL}/sendMessage`, {
