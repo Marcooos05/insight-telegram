@@ -6,19 +6,19 @@ const axios = require("axios");
 const bodyParser = require("body-parser");
 const FormData = require("form-data");
 const fs = require("fs");
-const admin = require("firebase-admin");
-// Path to your service account key JSON file
-const serviceAccount = require("./firestore-key.json");
+// const admin = require("firebase-admin");
+// // Path to your service account key JSON file
+// const serviceAccount = require("./firestore-key.json");
 const handleCallbackQuery = require("./utils/HandleCallbackQuery.js");
 const config = require("./config.js");
 
-// Initialize Firebase Admin SDK
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-});
+// // Initialize Firebase Admin SDK
+// admin.initializeApp({
+//   credential: admin.credential.cert(serviceAccount),
+// });
 
-// Initialize Firestore
-const db = admin.firestore();
+// // Initialize Firestore
+// const db = admin.firestore();
 
 // Load environment variables
 const projectId = process.env.PROJECT_ID;
@@ -238,14 +238,15 @@ app.post(URI, async (req, res) => {
           await handleRegistration(chatId, messageText, userStates, API_URL);
         }
       } else {
+        if (userStates[chatId] === undefined) {
+          userStates[chatId] = { state: END_FLOW };
+        }
         //If user is Registered
         if (messageText === "/start") {
           // Should not allow start handler anymore after registering
           await axios.post(`${API_URL}/sendMessage`, {
             chat_id: chatId,
-            text:
-              "🎉 <b>You have already registered. Please do /delete to remove your registration" +
-              "entry first!</b> 😊",
+            text: "🎉 <b>You have already registered. Please do /delete to remove your registration entry first!</b> 😊",
             parse_mode: "HTML", // Enables bold and clean formatting
           });
         } else if (messageText === "/events") {

@@ -12,6 +12,7 @@ const {
   END_FLOW,
 } = require("./eventpass");
 const { db } = require("../utils/firebaseAdmin");
+const config = require("../config");
 
 // Define state for end of registration flow
 const reg_states = {
@@ -29,7 +30,6 @@ async function handleRegistration(chatId, messageText, userStates, API_URL) {
   if (!userStates[chatId]) {
     // Initialize user state
     userStates[chatId] = { state: reg_states.START, data: {} };
-    //TODO - save chatID state into postgres on DO backend
   }
   if (userStates[chatId].state in event_states) {
     const user_state = userStates[chatId];
@@ -195,6 +195,23 @@ async function handleRegistration(chatId, messageText, userStates, API_URL) {
           });
 
           //TODO - save data into postgres on DO backend
+          try {
+            await axios.post(`${config.backendURL}/api/create-user`, {
+              id: `SUTD_OH2025_${chatId}`,
+              chatID: chatId,
+              groupType: user.data.groupType,
+              fullName: user.data.name,
+              emailAddress: user.data.email,
+              contactNumber: user.data.phone,
+              previousSchool: user.data.school,
+              eventPass: null, // Assuming eventPass is not available at this stage
+            });
+          } catch (error) {
+            console.log(error);
+            console.error("Error creating user in backend", error.message);
+            return null;
+          }
+
           try {
             await db.collection("registration").doc(String(chatId)).set(
               {

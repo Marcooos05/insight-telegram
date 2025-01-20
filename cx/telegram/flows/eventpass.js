@@ -105,13 +105,17 @@ async function handleEventPass(chatId, messageText, user, API_URL) {
             headers: form.getHeaders(),
           });
 
+          try {
+            axios.put(`${config.backendURL}/api/register-user/${chatId}`);
+          } catch (error) {
+            console.error("Error updating user status:", error.message);
+          }
+
           fs.unlinkSync(eventPassPath); // Delete the image after sending
           console.log("Event pass sent successfully");
         } catch (error) {
           console.error("Error creating or sending event pass:", error.message);
         }
-        //TODO store data into firebase
-        //TODO store data into PGSQL on Digital Ocean
 
         user.state = END_FLOW;
       } else {
@@ -188,13 +192,18 @@ async function handleEventPass(chatId, messageText, user, API_URL) {
           headers: form.getHeaders(),
         });
 
+        try {
+          axios.put(`${config.backendURL}/api/register-user/${chatId}`);
+        } catch (error) {
+          console.error("Error updating user status:", error.message);
+        }
+
         fs.unlinkSync(eventPassPath); // Delete the image after sending
         console.log("Event pass sent successfully");
       } catch (error) {
         console.error("Error creating or sending event pass:", error.message);
       }
 
-      //TODO store data into firebase
       user.state = END_FLOW;
       break;
 

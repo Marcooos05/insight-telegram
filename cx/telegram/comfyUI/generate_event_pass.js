@@ -207,7 +207,7 @@ async function createEventPass({
   // ]);
 
   // Generate QR code
-  const qrData = `SUTD_OH2025_${chatID}`; //TODO CHECK WHAT SHOULD THE EVENT USERID should be like
+  const qrData = `SUTD_OH2025_${chatID}`;
   const qrImgBuffer = await QRCode.toBuffer(qrData, {
     width: 400,
     height: 400,
