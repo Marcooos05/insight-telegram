@@ -44,6 +44,7 @@ const { SessionsClient } = require("@google-cloud/dialogflow-cx");
 const { handleRegistration } = require("./flows/registration");
 const { handleDelete } = require("./flows/delete");
 const { handlePlanning } = require("./flows/planning");
+const { handlePostEvent } = require("./flows/postevent");
 const { END_FLOW } = require("./flows/eventpass");
 const { PLANNING_START } = require("./flows/planning");
 const { sleep } = require("./utils/Sleep");
@@ -237,6 +238,9 @@ app.post(URI, async (req, res) => {
           // Continue the registration flow
           await handleRegistration(chatId, messageText, userStates, API_URL);
         }
+      } else if (config.postEventBoolean) {
+        //If event has ended
+        await handlePostEvent(chatId, messageText, userStates, API_URL);
       } else {
         if (userStates[chatId] === undefined) {
           userStates[chatId] = { state: END_FLOW };

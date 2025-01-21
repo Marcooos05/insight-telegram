@@ -256,7 +256,7 @@ async function getCustomAvatar(
       console.log(`Tagline: ${tagline}`);
       return { avatarName, tagline };
     } catch (error) {
-      console.error("Error generating avatar name and tagline:", error);
+      console.error("Error generating avatar name and tagline:", error.message);
       throw error;
     }
   }
@@ -289,7 +289,7 @@ async function getCustomAvatar(
       await sharp(Buffer.from(imageData[0])).toFile(avatarPath);
     }
   } catch (error) {
-    console.error("Error generating custom avatar:", error);
+    console.error("Error generating custom avatar:", error.message);
     throw error;
   }
 
