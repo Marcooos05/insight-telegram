@@ -8,6 +8,7 @@ const post_event_states = {
 };
 
 async function handlePostEvent(chatId, messageText, userStates, API_URL) {
+  //ASSUMPTION: User RECEIVED message from bot
   console.info("userState:" + userStates[chatId]);
   if (!userStates[chatId] || !userStates[chatId].postEventState) {
     userStates[chatId] = userStates[chatId] || {};

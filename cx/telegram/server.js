@@ -239,6 +239,7 @@ app.post(URI, async (req, res) => {
           await handleRegistration(chatId, messageText, userStates, API_URL);
         }
       } else if (config.postEventBoolean) {
+        //Should only enter this block after event has ended and telegram bot initiated a message
         //If event has ended
         await handlePostEvent(chatId, messageText, userStates, API_URL);
       } else {
