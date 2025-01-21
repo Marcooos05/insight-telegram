@@ -3,6 +3,7 @@ const axios = require("axios");
 const { END_FLOW} = require("../flows/eventpass");
 const { SELECT_EVENT } = require("../flows/planning");
 const {db} = require("./firebaseAdmin");
+const { FieldValue } = require("firebase-admin/firestore");
 
 const selectedEvents = {}; // ✅ Store user selections
 
@@ -56,12 +57,9 @@ async function handleEventChoice(chatId, messageText, API_URL, userState) {
       const remindersRef = db.collection("reminders");
 
       selectedEventNames.forEach(eventName => {
-        const docRef = remindersRef.doc(`${chatId}_${eventName}`);
+        const docRef = remindersRef.doc(`${eventName}`);
         batch.set(docRef, {
-          chatId,
-          event: eventName,
-          timestamp: new Date(), // Change this if you have event-specific timestamps
-          scheduledAt: new Date(new Date().getTime() + 24 * 60 * 60 * 1000), // Example: Schedule for 24 hours later
+          chatIds: FieldValue.arrayUnion(chatId), // Add chatId to the 'chatIds' array
         }, { merge: true });
       });
 
