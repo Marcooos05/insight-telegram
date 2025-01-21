@@ -78,10 +78,10 @@ async function handleEventPass(chatId, messageText, user, API_URL) {
       }
       // IF DATE IS AFTER 23 FEB OR PREREGISTER == FALSE THEN SKIP THIS STEP CHANGE STATE TO SELECT_INTEREST
       const currentDate = new Date();
-      const eventDate = new Date("2025-02-24"); //Open House Date set as 24 Feb 2025
-      const isPreRegistered = config.isPreRegistered;
+      const eventDate = new Date(config.openHouseDate);
 
-      if (currentDate > eventDate || !isPreRegistered) {
+      if (currentDate > eventDate || !config.isPreRegistration) {
+        // Skip the interest selection step
         await axios.post(`${API_URL}/sendMessage`, {
           chat_id: chatId,
           text: "⌛Generating a personalised digital pass for you. Your pass will be ready in a moment! Please wait patiently...⚡️",
