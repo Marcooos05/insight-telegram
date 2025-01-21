@@ -117,6 +117,11 @@ async function handleEventPass(chatId, messageText, user, API_URL) {
           console.error("Error creating or sending event pass:", error.message);
         }
 
+        await axios.post(`${API_URL}/sendMessage`, {
+          chat_id: chatId,
+          text: "⌛Here is your personalised digital pass!! Show your pass at the Welcome and Info Booth @ Campus Centre Level 1 to collect your goodie bag! 🎉🎉🎉",
+          parse_mode: "HTML", // Enables bold and clean formatting
+        });
         user.state = END_FLOW;
       } else {
         await axios.post(`${API_URL}/sendMessage`, {
@@ -203,7 +208,11 @@ async function handleEventPass(chatId, messageText, user, API_URL) {
       } catch (error) {
         console.error("Error creating or sending event pass:", error.message);
       }
-
+      await axios.post(`${API_URL}/sendMessage`, {
+        chat_id: chatId,
+        text: "⌛Here is your personalised digital pass!! Show your pass at the Welcome and Info Booth @ Campus Centre Level 1 to collect your goodie bag! 🎉🎉🎉",
+        parse_mode: "HTML", // Enables bold and clean formatting
+      });
       user.state = END_FLOW;
       break;
 
