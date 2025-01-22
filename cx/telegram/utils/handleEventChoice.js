@@ -59,7 +59,7 @@ async function handleEventChoice(chatId, messageText, API_URL, userState) {
       selectedEventNames.forEach(eventName => {
         const docRef = remindersRef.doc(`${eventName}`);
         batch.set(docRef, {
-          chatIds: FieldValue.arrayUnion(chatId), // Add chatId to the 'chatIds' array
+          chatIds: FieldValue.arrayUnion(String(chatId)), // Add chatId to the 'chatIds' array
         }, { merge: true });
       });
 
